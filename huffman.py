@@ -3,111 +3,82 @@ from numpy import copy
 
 
 class Node:
-    def __init__(self, prob, symbol, left=None, right=None):
-        self.prob = prob
-        self.symbol = symbol
+    def __init__(self, freq, tag, left=None, right=None):
+        self.freq = freq
+        self.tag = tag
         self.left = left
         self.right = right
-
-        # tree direction (0/1)
         self.code = ''
 
     def __str__(self):
-        return "node {0}: p = {1}, left = [{2}, right = {3}]".format(self.symbol, self.prob, self.left, self.right)
+        return "node {0}: p = {1}, left = [{2}, right = {3}]".format(self.tag, self.freq, self.left, self.right)
 
 
-""" A helper function to print the codes of symbols by traveling Huffman Tree"""
 codes = dict()
-
-###################################################???????????????????
-def Calculate_Codes(node, val=''):
-    newVal = val + str(node.code)
-    if (node.left):
-        Calculate_Codes(node.left, newVal)
-    if (node.right):
-        Calculate_Codes(node.right, newVal)
-
-    if (not node.left and not node.right):
-        codes[node.symbol] = newVal
-
+def calculate_codes(node, val=''):
+    if node.left:
+        calculate_codes(node.left, val + str(node.code))
+    if node.right:
+        calculate_codes(node.right, val + str(node.code))
+    if not node.left and not node.right:
+        codes[node.tag] = val + str(node.code)
     return codes
 
 
-""" A helper function to calculate the probabilities of symbols in given data"""
-
-
-def Calculate_Probability(data):
+def calculate_freq(data):
     unique, counts = np.unique(data, return_counts=True)
     occur_count_dict = dict(zip(unique, counts))
     return occur_count_dict
 
 
-""" A helper function to obtain the encoded output"""
-
-
-def Output_Encoded(data, coding):
+def encode_res(data, coding):
     encoding_output = copy(data).astype(str)
     for k, v in coding.items():
-        encoding_output[data==k] = int(v)
+        encoding_output[data==k] = v
     return encoding_output
 
 
-""" A helper function to calculate the space difference between compressed and non compressed data"""
-
-
-def Total_Gain(calculate_probability_dict, coding):
+def compression_ratio(calculate_freq_dict, coding):
     before_compression = 0
-    for k, v in calculate_probability_dict.items():
+    for k, v in calculate_freq_dict.items():
         before_compression += v
-    before_compression *= 8  # total bit space to stor the data before compression
+    before_compression *= 8
     after_compression = 0
     for symbol in coding.keys():
-        count = calculate_probability_dict[symbol]
-        after_compression += count * len(coding[symbol])  # calculate how many bit is required for that symbol in total
-    #before_compression /= (2**23)
-    #after_compression /= (2**23)
-    print("Space usage before compression (in bits):", before_compression)
-    print("Space usage after compression (in bits):", after_compression)
+        count = calculate_freq_dict[symbol]
+        after_compression += count * len(coding[symbol])
+    print("required bits before coding: ", before_compression)
+    print("required bits after coding: ", after_compression)
+    print("Compression ratio by huffman coding: {:.2f}".format(((before_compression - after_compression)/before_compression)*100))
 
 
-def Huffman_Encoding(data):
-    calculate_probability_dict = Calculate_Probability(data)
-    print("symbols: ", calculate_probability_dict.keys())
-    print("probabilities: ", calculate_probability_dict.values())
-
+def huffman_encoding(data):
+    calculate_freq_dict = calculate_freq(data)
     nodes = []
-
-    # converting symbols and probabilities into huffman tree nodes
-    for symbol in calculate_probability_dict.keys():
-        nodes.append(Node(calculate_probability_dict[symbol], symbol))
+    for symbol in calculate_freq_dict.keys():
+        nodes.append(Node(calculate_freq_dict[symbol], symbol))
 
     while len(nodes) > 1:
-        # sort all the nodes in ascending order based on their probability
-        nodes = sorted(nodes, key=lambda x: x.prob)
-
-        # pick 2 smallest nodes
+        nodes = sorted(nodes, key=lambda x: x.freq)
         right = nodes[0]
         left = nodes[1]
-
         left.code = 0
         right.code = 1
-
-        # combine the 2 smallest nodes to create new node
-        newNode = Node(left.prob + right.prob, left.symbol + right.symbol, left, right)
-
+        newNode = Node(left.freq + right.freq, left.tag + right.tag, left, right)
         nodes.remove(left)
         nodes.remove(right)
         nodes.append(newNode)
 
-    huffman_encoding = Calculate_Codes(nodes[0])
-    print("symbols with codes", huffman_encoding)
-    Total_Gain(calculate_probability_dict, huffman_encoding)
-    encoded_output = Output_Encoded(data, huffman_encoding)
+    huffman_encoding = calculate_codes(nodes[0])
+    print("coding: ", huffman_encoding)
+    encoded_output = encode_res(data, huffman_encoding)
+    compression_ratio(calculate_freq_dict, huffman_encoding)
     return encoded_output, nodes[0]
 
 
-""" First Test """
-#data = [8, 8, 34, 5, 10, 34, 6, 43, 127, 10, 10, 8, 10, 34, 10]
-#print(data)
-#encoding, tree = Huffman_Encoding(data)
-#print("Encoded output", encoding)
+'''
+data = [8, 8, 34, 5, 10, 34, 6, 43, 127, 10, 10, 8, 10, 34, 10]
+print(data)
+encoding, tree = huffman_encoding(data)
+print("Encoded output", encoding)
+'''
